@@ -199,10 +199,10 @@ body{font-family:'Segoe UI','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
 #edge-limit{width:52px;padding:4px 6px;border-radius:6px;border:1px solid #222340;
   background:#181930;color:#8888aa;font-size:12px;text-align:center;outline:none}
 #edge-limit:focus{border-color:#4488bb;color:#bbb}
-#pkg-level{padding:4px 6px;border-radius:6px;border:1px solid #222340;
+#pkg-level,#flow-depth{padding:4px 6px;border-radius:6px;border:1px solid #222340;
   background:#181930;color:#8888aa;font-size:12px;outline:none;cursor:pointer}
-#pkg-level:focus{border-color:#4488bb;color:#bbb}
-#pkg-level option{background:#181930;color:#8888aa}
+#pkg-level:focus,#flow-depth:focus{border-color:#4488bb;color:#bbb}
+#pkg-level option,#flow-depth option{background:#181930;color:#8888aa}
 
 #canvas-container{position:fixed;top:50px;left:0;right:0;bottom:0;
   overflow:hidden;cursor:grab;
@@ -331,6 +331,43 @@ body.edges-on-top #edge-svg{z-index:50}
 #mm-resize{position:absolute;top:0;left:0;width:16px;height:16px;cursor:nw-resize;z-index:2}
 #mm-resize::before{content:'';position:absolute;top:4px;left:4px;width:8px;height:8px;
   border-left:2px solid #555570;border-top:2px solid #555570;opacity:.7}
+
+/* Call-stack node list overlay (toggled from the minimap) */
+#mm-stack-toggle{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:5px;
+  background:#222340cc;border:1px solid #444470;color:#aab0d0;font-size:11px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:6;
+  line-height:1;user-select:none;transition:background .15s,color .15s}
+#mm-stack-toggle:hover{background:#2a2a55;color:#fff}
+#mm-stack-toggle.active{background:#1a2a4a;border-color:#4488bb;color:#66aaee}
+#minimap.stack-open #mm-canvas,#minimap.stack-open #mm-viewport,
+#minimap.stack-open #mm-stack-toggle{display:none}
+#mm-stack{position:absolute;inset:0;display:none;flex-direction:column;
+  background:#0e0f22f0;border-radius:10px;overflow:hidden;z-index:5}
+#minimap.stack-open #mm-stack{display:flex}
+#mm-stack-hdr{display:flex;align-items:center;justify-content:space-between;gap:6px;
+  padding:6px 8px;font-size:10px;color:#8888aa;text-transform:uppercase;letter-spacing:1px;
+  border-bottom:1px solid #222340;font-weight:600;flex-shrink:0}
+#mm-stack-close{background:none;border:1px solid #222340;color:#888;font-size:13px;
+  cursor:pointer;width:18px;height:18px;border-radius:5px;line-height:1;
+  display:flex;align-items:center;justify-content:center;transition:all .2s}
+#mm-stack-close:hover{background:#222340;color:#ddd}
+#mm-stack-ctl{display:flex;align-items:center;gap:8px;padding:7px 8px;font-size:11px;
+  color:#8888aa;border-bottom:1px solid #222340;flex-shrink:0}
+#mm-stack-ctl b{color:#ffd080;font-weight:700;min-width:14px;text-align:center}
+#mm-depth{flex:1;accent-color:#f5a623;cursor:pointer}
+#mm-stack-list{flex:1;overflow-y:auto;padding:3px 0}
+#mm-stack-list .ms-row{display:flex;align-items:center;gap:6px;padding:4px 8px;font-size:11px;
+  color:#b0b0d0;cursor:pointer;font-family:'Cascadia Code','Fira Code',monospace;
+  border-bottom:1px solid #14152a;word-break:break-all;line-height:1.3}
+#mm-stack-list .ms-row:hover{background:#181930;color:#fff}
+#mm-stack-list .ms-step{color:#f5a623;font-weight:700;flex-shrink:0;min-width:30px}
+#mm-stack-list .ms-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#mm-stack-list .ms-d{color:#555570;flex-shrink:0;font-weight:400}
+#mm-stack-list .ms-loop{color:#ffc070;background:#c97a0030;border:1px solid #c97a0060;
+  border-radius:6px;padding:0 4px;font-size:9px;flex-shrink:0}
+#mm-stack-list .ms-empty{padding:14px;font-size:11px;color:#555570;text-align:center}
+#mm-stack-list .ms-more{padding:6px 8px;font-size:10px;color:#555570;text-align:center;
+  font-style:italic}
 
 /* Connection dots on block borders */
 .conn-dot{position:absolute;width:8px;height:8px;border-radius:50%;z-index:200;
@@ -471,6 +508,9 @@ body.hide-entryend .block-entry,body.hide-entryend .block-end{box-shadow:none!im
     <div class="toolbar-sep"></div>
     <button class="toolbar-btn" id="btn-fit" title="Fit to screen (F)">Fit</button>
     <button class="toolbar-btn active" id="btn-flow" title="Toggle numbered execution-flow arrows">Flow</button>
+    <select id="flow-depth" title="Show flow arrows only for call-stack depths <= this value">
+      <option value="all" selected>All depths</option>
+    </select>
     <button class="toolbar-btn active" id="btn-entryend" title="Show program entry / end markers">Entry/End</button>
     <button class="toolbar-btn" id="btn-external" title="Show external (out-of-project) call summaries">External</button>
     <button class="toolbar-btn" id="btn-uncalled" title="Hide static-only (uncalled-at-runtime) blocks">Hide uncalled</button>
@@ -484,8 +524,8 @@ body.hide-entryend .block-entry,body.hide-entryend .block-end{box-shadow:none!im
     <button class="toolbar-btn" id="btn-top" title="Edges on top layer">Edges Top</button>
     <button class="toolbar-btn" id="btn-collapse" title="Collapse all">Collapse</button>
     <div class="toolbar-sep"></div>
-    <span style="font-size:11px;color:#555570">Max static edges</span>
-    <input type="number" id="edge-limit" value="100" min="0" max="9999" title="Max static edges to display (0=all)" />
+    <span style="font-size:11px;color:#555570">Max edges &amp; flow</span>
+    <input type="number" id="edge-limit" value="100" min="0" max="9999" title="Max static edges AND flow arrows to display (0=all; over the limit both are randomly sampled)" />
 </div>
 <div id="canvas-container">
     <div id="canvas">
@@ -501,6 +541,15 @@ body.hide-entryend .block-entry,body.hide-entryend .block-end{box-shadow:none!im
     <div id="mm-resize"></div>
     <canvas id="mm-canvas"></canvas>
     <div id="mm-viewport"></div>
+    <button id="mm-stack-toggle" title="Toggle call-stack node list">&#9776;</button>
+    <div id="mm-stack">
+        <div id="mm-stack-hdr"><span>Call stack</span><button id="mm-stack-close">&times;</button></div>
+        <div id="mm-stack-ctl">
+            <span>Depth &le; <b id="mm-depth-val">1</b></span>
+            <input type="range" id="mm-depth" min="1" max="1" value="1" />
+        </div>
+        <div id="mm-stack-list"></div>
+    </div>
 </div>
 <div id="external-panel">
     <h4>External calls <span id="ext-count" style="color:#666680"></span></h4>
@@ -561,6 +610,9 @@ var dragging=false,dsx=0,dsy=0,psx=0,psy=0;
 // Static call/inherit edges are OFF by default; the numbered execution flow is ON.
 var showEdges=false,showCalls=false,showInherit=false,allCollapsed=false,edgesOnTop=false;
 var showFlow=true,showEntryEnd=true,showExternal=false,hideUncalled=false;
+// 'all' = show every flow arrow; a number d = show only arrows whose destination
+// step is at call-stack depth <= d (cumulative, like the minimap slider).
+var flowDepthFilter='all';
 var searchTerm="";
 var lockedId=null;
 
@@ -604,6 +656,17 @@ document.getElementById('s-edge').textContent=ED.length+ID.length;
 function shortName(id){if(!id)return '—';var p=String(id).split('.');return p.slice(-2).join('.');}
 function fmtDur(s){s=s||0;if(s<=0)return '';if(s<1e-3)return Math.round(s*1e6)+'µs';if(s<1)return Math.round(s*1e3)+'ms';return s.toFixed(2)+'s';}
 var flowSteps=FD.steps||[],flowEdges=FD.edges||[];
+// step number -> call-stack depth (a flow edge's depth = its destination step's depth).
+var stepDepth={};flowSteps.forEach(function(s){stepDepth[s.step]=s.depth;});
+// Deepest call-stack depth present in the trace (drives the toolbar dropdown and
+// the minimap slider range). 0 when there is no trace (pure static view).
+var maxFlowDepth=0;flowSteps.forEach(function(s){if(s.depth>maxFlowDepth)maxFlowDepth=s.depth;});
+// Partial Fisher-Yates shuffle: pick n random items from arr (returns a new
+// array). Shared by static-edge and flow-arrow limiting so both "randomly
+// select" identically.
+function randomSample(arr,n){var a=arr.slice();n=Math.min(n,a.length);
+  for(var i=a.length-1;i>0&&i>=a.length-n;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
+  return a.slice(a.length-n);}
 document.getElementById('s-steps').textContent=flowSteps.length;
 document.getElementById('s-entry').textContent=shortName(FD.entry);
 document.getElementById('s-end').textContent=shortName(FD.end)+(FD.crashed?' (crashed)':'');
@@ -1055,7 +1118,7 @@ function drawEdges(){
     var visible=[];
     if(showCalls)ED.forEach(function(e){if(isBlockVisible(e.source)||isBlockVisible(e.target)){var sp=findPos(e.source,pos),tp=findPos(e.target,pos);if(sp&&tp)visible.push({s:e.source,t:e.target,type:'call'});}});
     if(showInherit)ID.forEach(function(e){if(isBlockVisible(e.source)||isBlockVisible(e.target)){var sp=findPos(e.source,pos),tp=findPos(e.target,pos);if(sp&&tp)visible.push({s:e.source,t:e.target,type:'inherit'});}});
-    if(maxEdges>0&&visible.length>maxEdges){for(var i=visible.length-1;i>0&&i>=visible.length-maxEdges;i--){var j=Math.floor(Math.random()*(i+1));var tmp=visible[i];visible[i]=visible[j];visible[j]=tmp;}visible=visible.slice(visible.length-maxEdges);}
+    if(maxEdges>0&&visible.length>maxEdges){visible=randomSample(visible,maxEdges);}
     var BATCH=80,idx=0;function batch(){var end=Math.min(idx+BATCH,visible.length);for(;idx<end;idx++){var e=visible[idx];createEdgePath(e.s,e.t,e.type,pos);}if(idx<visible.length)requestAnimationFrame(batch);}
     if(visible.length>0)batch();
     if(showFlow)drawFlowEdges(pos,vp,visibleIds,isBlockVisible);
@@ -1063,20 +1126,33 @@ function drawEdges(){
 }
 
 // Numbered execution-flow arrows (amber) with a step-number badge at the midpoint.
+// The draw set is cached (keyed by maxEdges|flowDepthFilter) so the random sample
+// does not reshuffle on every pan/zoom — only viewport visibility is rechecked per
+// draw. maxEdges limits flow arrows exactly like static edges (random sampling
+// over the limit); 0 = unlimited (with a browser-safety backstop).
+var FLOW_HARD=8000;
+var flowDrawSet=null,flowDrawKey='';
+function ensureFlowDrawSet(){
+    var key=maxEdges+'|'+flowDepthFilter;
+    if(flowDrawSet&&flowDrawKey===key)return flowDrawSet;
+    flowDrawKey=key;
+    var f;
+    if(flowDepthFilter==='all'){f=flowEdges.slice();}
+    else{f=flowEdges.filter(function(e){var d=stepDepth[e.step];return d!==undefined&&d<=flowDepthFilter;});}
+    if(maxEdges>0&&f.length>maxEdges)f=randomSample(f,maxEdges);
+    else if(f.length>FLOW_HARD)f=randomSample(f,FLOW_HARD);
+    flowDrawSet=f;return f;
+}
 function drawFlowEdges(pos,vp,visibleIds,isBlockVisible){
     if(!flowEdges||flowEdges.length===0)return;
-    var MAXF=3000,drawn=0,idx=0;
+    var set=ensureFlowDrawSet();if(!set.length)return;
+    var idx=0;
     function batch(){
-        var end=Math.min(idx+150,flowEdges.length);
-        for(;idx<end;idx++){
-            if(drawn>=MAXF)return;
-            var e=flowEdges[idx];
-            if(!isBlockVisible(e.s)&&!isBlockVisible(e.t))continue;
-            createFlowEdge(e.s,e.t,e.step,pos);drawn++;
-        }
-        if(idx<flowEdges.length&&drawn<MAXF)requestAnimationFrame(batch);
+        var end=Math.min(idx+150,set.length);
+        for(;idx<end;idx++){var e=set[idx];if(!isBlockVisible(e.s)&&!isBlockVisible(e.t))continue;createFlowEdge(e.s,e.t,e.step,pos);}
+        if(idx<set.length)requestAnimationFrame(batch);
     }
-    if(flowEdges.length>0)batch();
+    batch();
 }
 function createFlowEdge(sourceId,targetId,step,pos){
     var sPos=findPos(sourceId,pos),tPos=findPos(targetId,pos);if(!sPos||!tPos)return;
@@ -1248,6 +1324,10 @@ document.getElementById('btn-inherit').addEventListener('click',function(){if(!s
 document.getElementById('pkg-level').addEventListener('change',function(){
   pkgEdgeLevel=this.value;
 });
+document.getElementById('flow-depth').addEventListener('change',function(){
+  flowDepthFilter=this.value==='all'?'all':parseInt(this.value);
+  scheduleDrawEdges();
+});
 document.getElementById('btn-top').addEventListener('click',function(){edgesOnTop=!edgesOnTop;this.classList.toggle('active',edgesOnTop);document.body.classList.toggle('edges-on-top',edgesOnTop);});
 document.getElementById('btn-collapse').addEventListener('click',function(){
     allCollapsed=!allCollapsed;this.classList.toggle('active',allCollapsed);
@@ -1280,13 +1360,70 @@ function updateMinimap(){
     mmEl._map={scale:mmScale,offX:offX,offY:offY,contentScale:scale};
 }
 
-mmEl.addEventListener('click',function(e){if(mmResizing)return;var map=mmEl._map;if(!map)return;var rect=mmEl.getBoundingClientRect();var mx=e.clientX-rect.left,my=e.clientY-rect.top;if(mx<12||my<12||mx>rect.width-12||my>rect.height-12)return;var cx=(mx-map.offX)/map.scale;var cy=(my-map.offY)/map.scale;var cr=ctnr.getBoundingClientRect();panX=cr.width/2-cx*scale;panY=cr.height/2-cy*scale;updateTx();scheduleDrawEdges();updateMinimap();});
+mmEl.addEventListener('click',function(e){if(mmResizing)return;if(mmEl.classList.contains('stack-open'))return;var map=mmEl._map;if(!map)return;var rect=mmEl.getBoundingClientRect();var mx=e.clientX-rect.left,my=e.clientY-rect.top;if(mx<12||my<12||mx>rect.width-12||my>rect.height-12)return;var cx=(mx-map.offX)/map.scale;var cy=(my-map.offY)/map.scale;var cr=ctnr.getBoundingClientRect();panX=cr.width/2-cx*scale;panY=cr.height/2-cy*scale;updateTx();scheduleDrawEdges();updateMinimap();});
 
 var mmResize=document.getElementById('mm-resize');var mmResizing=false,mmRSx=0,mmRSy=0,mmRSw=0,mmRSh=0,mmRSright=0,mmRSbottom=0;
 mmResize.addEventListener('mousedown',function(e){e.preventDefault();e.stopPropagation();mmResizing=true;var r=mmEl.getBoundingClientRect();mmRSx=e.clientX;mmRSy=e.clientY;mmRSw=r.width;mmRSh=r.height;mmRSright=r.right;mmRSbottom=r.bottom;});
 window.addEventListener('mousemove',function(e){if(!mmResizing)return;var dx=e.clientX-mmRSx,dy=e.clientY-mmRSy;var nw=Math.max(120,mmRSw-dx),nh=Math.max(80,mmRSh-dy);mmEl.style.width=nw+'px';mmEl.style.height=nh+'px';mmEl.style.right=(window.innerWidth-mmRSright)+'px';mmEl.style.bottom=(window.innerHeight-mmRSbottom)+'px';updateMinimap();});
 window.addEventListener('mouseup',function(){mmResizing=false;});
 new ResizeObserver(function(){updateMinimap();}).observe(mmEl);
+
+// ===== Minimap call-stack node list (toggle button) =====
+var mmStackToggle=document.getElementById('mm-stack-toggle');
+var mmStackEl=document.getElementById('mm-stack');
+var mmStackClose=document.getElementById('mm-stack-close');
+var mmDepthSlider=document.getElementById('mm-depth');
+var mmDepthVal=document.getElementById('mm-depth-val');
+var mmStackList=document.getElementById('mm-stack-list');
+var mmStackPrev=null;   // saved {w,h} to restore on close
+var STACK_CAP=2000;     // max rows rendered (perf guard)
+
+// Configure the slider range from the trace's deepest call-stack depth.
+mmDepthSlider.min=1;
+mmDepthSlider.max=Math.max(1,maxFlowDepth);
+mmDepthSlider.value=Math.max(1,maxFlowDepth);
+mmDepthVal.textContent=mmDepthSlider.value;
+
+function renderMmStack(){
+    var n=parseInt(mmDepthSlider.value)||1;
+    mmDepthVal.textContent=n;
+    mmStackList.innerHTML='';
+    if(!flowSteps.length){var em=document.createElement('div');em.className='ms-empty';em.textContent='No call stack (static view)';mmStackList.appendChild(em);return;}
+    var shown=0,skipped=0;
+    for(var i=0;i<flowSteps.length;i++){
+        var s=flowSteps[i];
+        if(s.depth>n)continue;
+        if(shown>=STACK_CAP){skipped++;continue;}
+        shown++;
+        var row=document.createElement('div');row.className='ms-row';
+        var sp=document.createElement('span');sp.className='ms-step';sp.textContent='#'+s.step;row.appendChild(sp);
+        var nm=document.createElement('span');nm.className='ms-name';nm.textContent=shortName(s.id);nm.title=s.id;row.appendChild(nm);
+        if(s.loop_count&&s.loop_count>1){var lp=document.createElement('span');lp.className='ms-loop';lp.textContent='↻×'+s.loop_count;row.appendChild(lp);}
+        var dv=document.createElement('span');dv.className='ms-d';dv.textContent='d'+s.depth;row.appendChild(dv);
+        (function(id){row.addEventListener('click',function(ev){ev.stopPropagation();navigateToBlock(id);});})(s.id);
+        mmStackList.appendChild(row);
+    }
+    if(skipped>0){var more=document.createElement('div');more.className='ms-more';more.textContent='+'+skipped+' more — lower the depth';mmStackList.appendChild(more);}
+}
+function openMmStack(){
+    if(mmEl.classList.contains('stack-open'))return;
+    mmStackPrev={w:mmEl.offsetWidth,h:mmEl.offsetHeight};
+    if(mmStackPrev.w<260)mmEl.style.width='260px';
+    if(mmStackPrev.h<380)mmEl.style.height='380px';
+    mmEl.classList.add('stack-open');mmStackToggle.classList.add('active');
+    renderMmStack();
+}
+function closeMmStack(){
+    if(!mmEl.classList.contains('stack-open'))return;
+    mmEl.classList.remove('stack-open');mmStackToggle.classList.remove('active');
+    if(mmStackPrev){mmEl.style.width=mmStackPrev.w+'px';mmEl.style.height=mmStackPrev.h+'px';mmStackPrev=null;}
+    updateMinimap();
+}
+mmStackToggle.addEventListener('click',function(e){e.stopPropagation();if(mmEl.classList.contains('stack-open'))closeMmStack();else openMmStack();});
+mmStackClose.addEventListener('click',function(e){e.stopPropagation();closeMmStack();});
+mmDepthSlider.addEventListener('input',renderMmStack);
+// Clicks inside the stack panel must not bubble to the minimap's pan handler.
+mmStackEl.addEventListener('mousedown',function(e){e.stopPropagation();});
 
 document.addEventListener('keydown',function(e){if(e.target.id==='search-box'||e.target.id==='edge-limit'){if(e.key==='Escape'){e.target.blur();}return;}if(e.key==='f'||e.key==='F')fitToScreen();else if(e.key==='Escape'){closeNavMenu();document.getElementById('source-panel').classList.remove('open');clearSearch();document.getElementById('search-box').value='';searchTerm='';lockedId=null;clearAllEdgeHL();clearBlockHL();}else if(e.key==='/'||(e.ctrlKey&&e.key==='f')){e.preventDefault();document.getElementById('search-box').focus();}});
 
@@ -1301,6 +1438,15 @@ buildAll();
   // "All" option to show all package edges
   var all=document.createElement('option');all.value='all';all.textContent='All';
   sel.appendChild(all);
+})();
+// Populate the flow-depth selector: "All depths" + one cumulative option per
+// call-stack depth present in the trace (1..maxFlowDepth).
+(function(){
+  var sel=document.getElementById('flow-depth');
+  for(var d=1;d<=maxFlowDepth;d++){
+    var opt=document.createElement('option');opt.value=d;opt.textContent='≤'+d;
+    sel.appendChild(opt);
+  }
 })();
 var pkgEdgeLevel='none'; // 'all'|'none'|0|1|2...
 function isPkgEdgeHidden(s,t){
