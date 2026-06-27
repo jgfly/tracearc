@@ -328,8 +328,8 @@ body.edges-on-top #edge-svg{z-index:50}
 #minimap canvas{width:100%;height:100%}
 #mm-viewport{position:absolute;border:1.5px solid #64b5f680;border-radius:2px;
   pointer-events:none;background:rgba(100,181,246,.08)}
-#mm-resize{position:absolute;top:0;left:0;width:16px;height:16px;cursor:nw-resize;z-index:2}
-#mm-resize::before{content:'';position:absolute;top:4px;left:4px;width:8px;height:8px;
+#mm-resize{position:absolute;top:0;left:0;width:26px;height:26px;cursor:nw-resize;z-index:8}
+#mm-resize::before{content:'';position:absolute;top:6px;left:6px;width:9px;height:9px;
   border-left:2px solid #555570;border-top:2px solid #555570;opacity:.7}
 
 /* Call-stack node list overlay (toggled from the minimap) */
