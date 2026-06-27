@@ -114,7 +114,40 @@ def collapse(node, base=""):
                 children = [lp]
                 break
 
+    # 3) relaxed periodic-prefix wrap: a run of >=2 full periods followed by a
+    #    remainder. ``while`` loops emit check-then-body, so the trailing
+    #    condition check breaks exact periodicity (step 2). This collapses the
+    #    common ``[check, body]*k + [check]`` shape into one loop body + count.
+    if len(children) >= 4 and not any(isinstance(c, LoopNode) for c in children):
+        children = _collapse_periodic_prefix(children, base)
+
     node.children = children
+
+
+def _collapse_periodic_prefix(children, base):
+    """Wrap a leading periodic run (>=2 full periods) in a LoopNode, leaving
+    the remainder. Returns the possibly-restructured child list."""
+    n = len(children)
+    if n < 4:
+        return children
+    for p in range(1, n // 2 + 1):
+        if 2 * p > n:
+            break
+        if any(signature(children[i], base) != signature(children[i - p], base)
+               for i in range(p, 2 * p)):
+            continue
+        R = 2
+        while R * p + p <= n and all(
+            signature(children[R * p + j], base) == signature(children[j], base)
+            for j in range(p)
+        ):
+            R += 1
+        body = [children[j] for j in range(p)]
+        lp = LoopNode(count=R, children=body)
+        lp.duration = sum(c.duration for c in body) * R
+        remainder = children[R * p:]
+        return [lp] + _collapse_periodic_prefix(remainder, base)
+    return children
 
 
 def count_nodes(node):

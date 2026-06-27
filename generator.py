@@ -454,6 +454,15 @@ body.hide-entryend .block-entry,body.hide-entryend .block-end{box-shadow:none!im
     def _get_html_body(self, nodes_json: str, edges_json: str,
                        inheritance_json: str, source_json: str,
                        flow_json: str) -> str:
+        # Escape ``<`` so embedded source code containing ``</script>`` cannot
+        # break out of the JSON <script> blob (JSON allows <).
+        def _esc(s):
+            return s.replace("<", "\\u003c")
+        nodes_json = _esc(nodes_json)
+        edges_json = _esc(edges_json)
+        inheritance_json = _esc(inheritance_json)
+        source_json = _esc(source_json)
+        flow_json = _esc(flow_json)
         return f"""
 <div id="toolbar">
     <span class="logo">tracearc</span>
