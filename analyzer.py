@@ -219,7 +219,7 @@ class ModuleAnalyzer:
         if is_dataclass and not init_params:
             init_params = self._extract_dataclass_fields(node)
 
-        source = self._extract_source(node.lineno, node.end_lineno)
+        source = self._extract_source(self._source_start_line(node), node.end_lineno)
 
         return ClassInfo(
             name=node.name,
@@ -260,7 +260,7 @@ class ModuleAnalyzer:
         else:
             full_name = f"{self.module_name}.{node.name}"
 
-        source = self._extract_source(node.lineno, node.end_lineno)
+        source = self._extract_source(self._source_start_line(node), node.end_lineno)
 
         return FuncInfo(
             name=node.name,
@@ -429,6 +429,20 @@ class ModuleAnalyzer:
                 return f"{self.module_name}.{func.name}"
 
         return call_name
+
+    def _source_start_line(self, node) -> int:
+        """First line of a def/class's source, including its decorators.
+
+        ``node.lineno`` points at the ``def``/``class`` keyword, *below* any
+        decorators — so extracting from ``node.lineno`` drops the decorators.
+        Back up to the earliest decorator's line when present.
+        """
+        start = node.lineno
+        for dec in getattr(node, "decorator_list", None) or ():
+            dline = getattr(dec, "lineno", None)
+            if dline is not None and dline < start:
+                start = dline
+        return start
 
     def _extract_source(self, start_line: int, end_line: int | None) -> str:
         if end_line is None:

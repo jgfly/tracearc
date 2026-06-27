@@ -45,7 +45,7 @@ class HTMLGenerator:
 {self._get_css()}
 </style>
 </head>
-<body>
+<body class="edges-on-top">
 {self._get_html_body(nodes_json, edges_json, inheritance_json, source_json, flow_json)}
 <script>
 {self._get_javascript()}
@@ -521,7 +521,7 @@ body.hide-entryend .block-entry,body.hide-entryend .block-end{box-shadow:none!im
     <select id="pkg-level" title="Show package edges for this depth and below">
       <option value="none" selected>None</option>
     </select>
-    <button class="toolbar-btn" id="btn-top" title="Edges on top layer">Edges Top</button>
+    <button class="toolbar-btn active" id="btn-top" title="Edges on top layer">Edges Top</button>
     <button class="toolbar-btn" id="btn-collapse" title="Collapse all">Collapse</button>
     <div class="toolbar-sep"></div>
     <span style="font-size:11px;color:#555570">Max edges &amp; flow</span>
@@ -569,7 +569,8 @@ body.hide-entryend .block-entry,body.hide-entryend .block-end{box-shadow:none!im
     <div class="legend-row"><div class="legend-swatch" style="background:#1e1420;border:1px solid #6a2a6a"></div>Method</div>
     <div class="legend-row"><div class="legend-line" style="background:#5b9bd5"></div>Call (static)</div>
     <div class="legend-row"><div class="legend-line" style="background:#ff6b6b;border-top:2px dashed #ff6b6b;height:0"></div>Inherit (static)</div>
-    <div class="legend-row"><div class="legend-line" style="background:#f5a623"></div>Flow (step →)</div>
+    <div class="legend-row"><div class="legend-line" style="background:#f5a623"></div>Flow (by depth)</div>
+    <div class="legend-row" id="depth-legend-row" style="display:none;flex-wrap:wrap"><span style="font-size:10px;color:#555570;min-width:42px">Depth</span><span id="depth-chips" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center"></span></div>
     <div class="legend-row"><div class="legend-swatch" style="background:#3a9a3a"></div>Entry ▶</div>
     <div class="legend-row"><div class="legend-swatch" style="background:#9a3a3a"></div>End ■</div>
     <div class="legend-row"><div class="legend-swatch" style="background:#888;border-radius:50%"></div>External</div>
@@ -608,7 +609,7 @@ var FD=JSON.parse(document.getElementById('d-flow').textContent);
 var scale=1,panX=40,panY=40;
 var dragging=false,dsx=0,dsy=0,psx=0,psy=0;
 // Static call/inherit edges are OFF by default; the numbered execution flow is ON.
-var showEdges=false,showCalls=false,showInherit=false,allCollapsed=false,edgesOnTop=false;
+var showEdges=false,showCalls=false,showInherit=false,allCollapsed=false,edgesOnTop=true;
 var showFlow=true,showEntryEnd=true,showExternal=false,hideUncalled=false;
 // 'all' = show every flow arrow; a number d = show only arrows whose destination
 // step is at call-stack depth <= d (cumulative, like the minimap slider).
@@ -667,6 +668,12 @@ var maxFlowDepth=0;flowSteps.forEach(function(s){if(s.depth>maxFlowDepth)maxFlow
 function randomSample(arr,n){var a=arr.slice();n=Math.min(n,a.length);
   for(var i=a.length-1;i>0&&i>=a.length-n;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
   return a.slice(a.length-n);}
+// Call-stack depth -> color, shared by the minimap call-stack nodes and the
+// flow arrows so a given depth reads as the same color in both. Warm -> cool
+// spectrum, cycling for very deep traces.
+var DEPTH_COLORS=['#ff6b6b','#f5a623','#ffd54f','#66d9a6','#4fc1ff','#9c7cff','#ff7ce0','#5be0c0'];
+function depthColorIdx(d){if(!d||d<1)d=1;return (d-1)%DEPTH_COLORS.length;}
+function depthColor(d){return DEPTH_COLORS[depthColorIdx(d)];}
 document.getElementById('s-steps').textContent=flowSteps.length;
 document.getElementById('s-entry').textContent=shortName(FD.entry);
 document.getElementById('s-end').textContent=shortName(FD.end)+(FD.crashed?' (crashed)':'');
@@ -1111,6 +1118,9 @@ function drawEdges(){
     var mk2=document.createElementNS('http://www.w3.org/2000/svg','marker');mk2.setAttribute('id','a-inh');mk2.setAttribute('viewBox','0 0 12 8');mk2.setAttribute('refX','11');mk2.setAttribute('refY','4');mk2.setAttribute('markerWidth','10');mk2.setAttribute('markerHeight','7');mk2.setAttribute('orient','auto');var p2=document.createElementNS('http://www.w3.org/2000/svg','path');p2.setAttribute('d','M0,0 L12,4 L0,8 Z');p2.setAttribute('fill','#0d0e1a');p2.setAttribute('stroke','#ff6b6b');p2.setAttribute('stroke-width','1.5');mk2.appendChild(p2);defs.appendChild(mk2);
     var mk2h=document.createElementNS('http://www.w3.org/2000/svg','marker');mk2h.setAttribute('id','a-inh-hl');mk2h.setAttribute('viewBox','0 0 12 8');mk2h.setAttribute('refX','11');mk2h.setAttribute('refY','4');mk2h.setAttribute('markerWidth','10');mk2h.setAttribute('markerHeight','7');mk2h.setAttribute('orient','auto');var p2h=document.createElementNS('http://www.w3.org/2000/svg','path');p2h.setAttribute('d','M0,0 L12,4 L0,8 Z');p2h.setAttribute('fill','#1a0e1a');p2h.setAttribute('stroke','#ff9090');p2h.setAttribute('stroke-width','2');mk2h.appendChild(p2h);defs.appendChild(mk2h);
     var mkf=document.createElementNS('http://www.w3.org/2000/svg','marker');mkf.setAttribute('id','a-flow');mkf.setAttribute('viewBox','0 0 12 8');mkf.setAttribute('refX','11');mkf.setAttribute('refY','4');mkf.setAttribute('markerWidth','9');mkf.setAttribute('markerHeight','7');mkf.setAttribute('orient','auto');var pf=document.createElementNS('http://www.w3.org/2000/svg','path');pf.setAttribute('d','M0,0 L12,4 L0,8 Z');pf.setAttribute('fill','#f5a623');mkf.appendChild(pf);defs.appendChild(mkf);
+    // Per-depth flow arrowheads (one per palette color) so the arrowhead matches
+    // the depth-colored stroke. id a-flow-d<idx>.
+    for(var dci=0;dci<DEPTH_COLORS.length;dci++){var md=document.createElementNS('http://www.w3.org/2000/svg','marker');md.setAttribute('id','a-flow-d'+dci);md.setAttribute('viewBox','0 0 12 8');md.setAttribute('refX','11');md.setAttribute('refY','4');md.setAttribute('markerWidth','9');md.setAttribute('markerHeight','7');md.setAttribute('orient','auto');var pd=document.createElementNS('http://www.w3.org/2000/svg','path');pd.setAttribute('d','M0,0 L12,4 L0,8 Z');pd.setAttribute('fill',DEPTH_COLORS[dci]);md.appendChild(pd);defs.appendChild(md);}
     svg.appendChild(defs);
     var pos=measure(),vp=getViewport();
     var visibleIds=new Set();Object.keys(pos).forEach(function(id){var p=pos[id];if(p.x+p.w>vp.left&&p.x<vp.right&&p.y+p.h>vp.top&&p.y<vp.bottom)visibleIds.add(id);});
@@ -1161,11 +1171,11 @@ function createFlowEdge(sourceId,targetId,step,pos){
     if(Math.abs(dy)>Math.abs(dx)*0.4){cx1=x1;cy1=y1+dy*0.35;cx2=x2;cy2=y2-dy*0.35;var off=(Math.sin(x1*0.01+y1*0.01)*0.5+0.5)*24-12;cx1+=off;cx2+=off;}
     else{cx1=x1+dx*0.35;cy1=y1;cx2=x1+dx*0.65;cy2=y2;var offy=(Math.sin(x1*0.01+y1*0.01)*0.5+0.5)*24-12;cy1+=offy;cy2+=offy;}
     var d='M'+x1+','+y1+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+x2+','+y2;
-    var path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',d);path.classList.add('ef');path.setAttribute('marker-end','url(#a-flow)');path.dataset.source=sourceId;path.dataset.target=targetId;svg.appendChild(path);
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',d);path.classList.add('ef');var dci=depthColorIdx(stepDepth[step]),dcol=DEPTH_COLORS[dci];path.style.stroke=dcol;path.setAttribute('marker-end','url(#a-flow-d'+dci+')');path.dataset.source=sourceId;path.dataset.target=targetId;svg.appendChild(path);
     var lbl=''+step;var w=lbl.length*7+8,mx=(x1+x2)/2,my=(y1+y2)/2;
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');g.classList.add('flow-label');
-    var rect=document.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',mx-w/2);rect.setAttribute('y',my-8);rect.setAttribute('width',w);rect.setAttribute('height',16);rect.setAttribute('rx',4);g.appendChild(rect);
-    var tx=document.createElementNS('http://www.w3.org/2000/svg','text');tx.setAttribute('x',mx);tx.setAttribute('y',my);tx.textContent=lbl;g.appendChild(tx);
+    var rect=document.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',mx-w/2);rect.setAttribute('y',my-8);rect.setAttribute('width',w);rect.setAttribute('height',16);rect.setAttribute('rx',4);rect.style.stroke=dcol;g.appendChild(rect);
+    var tx=document.createElementNS('http://www.w3.org/2000/svg','text');tx.setAttribute('x',mx);tx.setAttribute('y',my);tx.textContent=lbl;tx.style.fill=dcol;g.appendChild(tx);
     svg.appendChild(g);
 }
 
@@ -1396,7 +1406,11 @@ function renderMmStack(){
         if(shown>=STACK_CAP){skipped++;continue;}
         shown++;
         var row=document.createElement('div');row.className='ms-row';
-        var sp=document.createElement('span');sp.className='ms-step';sp.textContent='#'+s.step;row.appendChild(sp);
+        // Indent + color the row by call-stack depth (matches flow arrow color):
+        // a depth-colored left border that stairsteps right as depth grows.
+        row.style.marginLeft=(Math.min(s.depth-1,12)*11)+'px';
+        row.style.borderLeft='3px solid '+depthColor(s.depth);
+        var sp=document.createElement('span');sp.className='ms-step';sp.style.color=depthColor(s.depth);sp.textContent='#'+s.step;row.appendChild(sp);
         var nm=document.createElement('span');nm.className='ms-name';nm.textContent=shortName(s.id);nm.title=s.id;row.appendChild(nm);
         if(s.loop_count&&s.loop_count>1){var lp=document.createElement('span');lp.className='ms-loop';lp.textContent='↻×'+s.loop_count;row.appendChild(lp);}
         var dv=document.createElement('span');dv.className='ms-d';dv.textContent='d'+s.depth;row.appendChild(dv);
@@ -1447,6 +1461,21 @@ buildAll();
     var opt=document.createElement('option');opt.value=d;opt.textContent='≤'+d;
     sel.appendChild(opt);
   }
+})();
+// Depth -> color legend chips (mirrors the minimap node + flow arrow coloring).
+// Show one chip per distinct palette color up to the trace's max depth.
+(function(){
+  if(maxFlowDepth<1)return;
+  var row=document.getElementById('depth-legend-row');if(!row)return;
+  var chips=document.getElementById('depth-chips');
+  var upto=Math.min(maxFlowDepth,DEPTH_COLORS.length);
+  for(var d=1;d<=upto;d++){
+    var c=document.createElement('span');c.style.cssText='display:inline-flex;align-items:center;gap:3px';
+    var sw=document.createElement('span');sw.style.cssText='width:9px;height:9px;border-radius:2px;background:'+depthColor(d)+';display:inline-block';
+    var lb=document.createElement('span');lb.style.cssText='color:#8888aa;font-size:10px';lb.textContent=d;
+    c.appendChild(sw);c.appendChild(lb);chips.appendChild(c);
+  }
+  row.style.display='flex';
 })();
 var pkgEdgeLevel='none'; // 'all'|'none'|0|1|2...
 function isPkgEdgeHidden(s,t){
