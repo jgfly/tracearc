@@ -1148,7 +1148,7 @@ function ensureFlowDrawSet(){
     flowDrawKey=key;
     var f;
     if(flowDepthFilter==='all'){f=flowEdges.slice();}
-    else{f=flowEdges.filter(function(e){var d=stepDepth[e.step];return d!==undefined&&d<=flowDepthFilter;});}
+    else{f=flowEdges.filter(function(e){var d=stepDepth[e.step_first];return d!==undefined&&d<=flowDepthFilter;});}
     if(maxEdges>0&&f.length>maxEdges)f=randomSample(f,maxEdges);
     else if(f.length>FLOW_HARD)f=randomSample(f,FLOW_HARD);
     flowDrawSet=f;return f;
@@ -1159,20 +1159,20 @@ function drawFlowEdges(pos,vp,visibleIds,isBlockVisible){
     var idx=0;
     function batch(){
         var end=Math.min(idx+150,set.length);
-        for(;idx<end;idx++){var e=set[idx];if(!isBlockVisible(e.s)&&!isBlockVisible(e.t))continue;createFlowEdge(e.s,e.t,e.step,pos);}
+        for(;idx<end;idx++){var e=set[idx];if(!isBlockVisible(e.s)&&!isBlockVisible(e.t))continue;createFlowEdge(e.s,e.t,e.step_first,e.step_last,e.count,pos);}
         if(idx<set.length)requestAnimationFrame(batch);
     }
     batch();
 }
-function createFlowEdge(sourceId,targetId,step,pos){
+function createFlowEdge(sourceId,targetId,stepFirst,stepLast,count,pos){
     var sPos=findPos(sourceId,pos),tPos=findPos(targetId,pos);if(!sPos||!tPos)return;
     var srcPt=rectEdgePoint(sPos,tPos.cx,tPos.cy),tgtPt=rectEdgePoint(tPos,sPos.cx,sPos.cy);
     var x1=srcPt.x,y1=srcPt.y,x2=tgtPt.x,y2=tgtPt.y;var dx=x2-x1,dy=y2-y1,cx1,cy1,cx2,cy2;
     if(Math.abs(dy)>Math.abs(dx)*0.4){cx1=x1;cy1=y1+dy*0.35;cx2=x2;cy2=y2-dy*0.35;var off=(Math.sin(x1*0.01+y1*0.01)*0.5+0.5)*24-12;cx1+=off;cx2+=off;}
     else{cx1=x1+dx*0.35;cy1=y1;cx2=x1+dx*0.65;cy2=y2;var offy=(Math.sin(x1*0.01+y1*0.01)*0.5+0.5)*24-12;cy1+=offy;cy2+=offy;}
     var d='M'+x1+','+y1+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+x2+','+y2;
-    var path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',d);path.classList.add('ef');var dci=depthColorIdx(stepDepth[step]),dcol=DEPTH_COLORS[dci];path.style.stroke=dcol;path.setAttribute('marker-end','url(#a-flow-d'+dci+')');path.dataset.source=sourceId;path.dataset.target=targetId;svg.appendChild(path);
-    var lbl=''+step;var w=lbl.length*7+8,mx=(x1+x2)/2,my=(y1+y2)/2;
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',d);path.classList.add('ef');var dci=depthColorIdx(stepDepth[stepFirst]),dcol=DEPTH_COLORS[dci];path.style.stroke=dcol;path.setAttribute('marker-end','url(#a-flow-d'+dci+')');path.dataset.source=sourceId;path.dataset.target=targetId;svg.appendChild(path);
+    var lbl=count>1?(stepFirst+'>'+stepLast):(''+stepFirst);var w=lbl.length*7+8,mx=(x1+x2)/2,my=(y1+y2)/2;
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');g.classList.add('flow-label');
     var rect=document.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',mx-w/2);rect.setAttribute('y',my-8);rect.setAttribute('width',w);rect.setAttribute('height',16);rect.setAttribute('rx',4);rect.style.stroke=dcol;g.appendChild(rect);
     var tx=document.createElementNS('http://www.w3.org/2000/svg','text');tx.setAttribute('x',mx);tx.setAttribute('y',my);tx.textContent=lbl;tx.style.fill=dcol;g.appendChild(tx);
