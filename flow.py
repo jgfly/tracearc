@@ -69,6 +69,31 @@ def build_block_index(project_data, base):
     return idx, mod_by_rel, class_ids
 
 
+def _dedupe_edges(edges):
+    """Merge duplicate (s, t) flow edges into a single edge with step range.
+
+    When A calls B many times, only one arrow is drawn from A→B.  The label
+    shows the step range ``first>last`` (e.g. ``3>2000``); for a single call
+    the label is just the step number (e.g. ``42``).
+    """
+    from collections import OrderedDict
+    groups = OrderedDict()
+    for e in edges:
+        key = (e["s"], e["t"])
+        if key not in groups:
+            groups[key] = {"s": e["s"], "t": e["t"],
+                           "step_first": e["step"], "step_last": e["step"],
+                           "count": 1}
+        else:
+            g = groups[key]
+            if e["step"] < g["step_first"]:
+                g["step_first"] = e["step"]
+            if e["step"] > g["step_last"]:
+                g["step_last"] = e["step"]
+            g["count"] += 1
+    return list(groups.values())
+
+
 def flatten_flow(root, block_index, base, flow_depth=None, class_ids=None):
     """Flatten the collapsed call tree into a numbered execution flow.
 
@@ -160,6 +185,7 @@ def flatten_flow(root, block_index, base, flow_depth=None, class_ids=None):
 
     entry_id = steps[0]["id"] if steps else None
     end_id = steps[-1]["id"] if steps else None
+    edges = _dedupe_edges(edges)
     external_list = [
         {"id": "ext::%d" % i, "label": e["label"], "pkg": e["pkg"],
          "count": e["count"], "duration": e["duration"]}
